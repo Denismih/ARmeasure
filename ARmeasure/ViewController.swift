@@ -13,6 +13,12 @@ import ARKit
 class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
+    @IBOutlet weak var target: UIView!
+    @IBOutlet weak var result: UILabel!
+    @IBOutlet weak var btn: UIButton!
+    
+    var firstBox : SCNNode?
+    var secondBox : SCNNode?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -35,6 +41,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        configuration.planeDetection = .horizontal
 
         // Run the view's session
         sceneView.session.run(configuration)
@@ -47,34 +54,51 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.session.pause()
     }
     
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Release any cached data, images, etc that aren't in use.
-    }
-
-    // MARK: - ARSCNViewDelegate
-    
-/*
-    // Override to create and configure nodes for anchors added to the view's session.
-    func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
-        let node = SCNNode()
-     
-        return node
-    }
-*/
-    
-    func session(_ session: ARSession, didFailWithError error: Error) {
-        // Present an error message to the user
-        
-    }
-    
-    func sessionWasInterrupted(_ session: ARSession) {
-        // Inform the user that the session has been interrupted, for example, by presenting an overlay
-        
+    @IBAction func setPoint(_ sender: Any) {
+        if firstBox == nil {
+            firstBox = addBox()
+            btn.setTitle("Set End Point", for: .normal)
+        } else if secondBox == nil {
+            secondBox = addBox()
+            
+            if secondBox != nil {
+                calcDistance()
+                btn.setTitle("Reset", for: .normal)
+            }
+        } else {
+            firstBox?.removeFromParentNode()
+            firstBox?.removeFromParentNode()
+            firstBox = nil
+            secondBox = nil
+            btn.setTitle("Set Start Point", for: .normal)
+            
+        }
     }
     
-    func sessionInterruptionEnded(_ session: ARSession) {
-        // Reset tracking and/or remove existing anchors if consistent tracking is required
-        
+    func calcDistance() {
+        if let firstBox = firstBox {
+            if let secondBox = secondBox {
+                let vector = SCNVector3Make(secondBox.position.x - firstBox.position.x, secondBox.position.z - firstBox.position.z, secondBox.position.z - firstBox.position.z)
+                let dist = sqrt(vector.x*vector.x + vector.y*vector.y + vector.z*vector.z)
+                self.result.text = "\(dist)m"
+            }
+        }
+    }
+    
+    func addBox() -> SCNNode? {
+        let userTouch = sceneView.center
+        let testResults = sceneView.hitTest(userTouch, types: .featurePoint)
+        if let res = testResults.first {
+            let box = SCNBox(width: 0.005, height: 0.005, length: 0.005, chamferRadius: 0.005)
+            let matirial = SCNMaterial()
+            matirial.diffuse.contents = UIColor.green
+            box.firstMaterial = matirial
+            
+            let node = SCNNode(geometry: box)
+            node.position = SCNVector3(res.worldTransform.columns.3.x,res.worldTransform.columns.3.y,res.worldTransform.columns.3.z)
+            sceneView.scene.rootNode.addChildNode(node)
+            return node
+        }
+        return nil
     }
 }
